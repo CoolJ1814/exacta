@@ -5,6 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+import { validateEventInput } from '../src/event-input.js';
+import { buildAnalysisPrompt } from './analysis-prompt.js';
+
 dotenv.config();
 
 const app = express();
@@ -155,16 +158,17 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
 
-    const { event, entrants, sport } = req.body || {};
-
-    if (!event || !entrants) {
-      return res.status(400).json({ error: 'Missing event or entrants data.' });
+    let input;
+    try {
+      input = validateEventInput(req.body);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
     }
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-3.8-flash' });
 
-    const prompt = `You are EXACTA, an AI sports and racing analyst. Analyze only the verified API data provided below. Do not invent missing runners, odds, injuries, scratches, form, trainer data, jockey data, or results. If a field is unavailable, say it is unavailable from the data source. Do not promise guaranteed wins. Give responsible, decision-support analysis only.\n\nSport: ${sport || 'Unknown'}\n\nEvent JSON:\n${JSON.stringify(event, null, 2)}\n\nEntrants JSON:\n${JSON.stringify(entrants, null, 2)}\n\nCreate a Race Intelligence Report or Event Intelligence Report with these sections:\n1. Event Summary\n2. Most Likely Winner or Side\n3. Best Value Angle\n4. Long Shot or Upset Candidate\n5. Safest Wager Style\n6. Key Risks\n7. Confidence Score from 1-100\n8. What Am I Missing? Challenge your own pick before finalizing.\n9. Final Recommendation`;
+    const prompt = buildAnalysisPrompt(input);
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
@@ -184,3 +188,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`EXACTA server running on port ${PORT}`);
 });
+
