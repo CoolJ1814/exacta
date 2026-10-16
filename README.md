@@ -76,3 +76,49 @@ Load Sports
 - `src/App.jsx` — EXACTA frontend flow
 - `src/styles.css` — app styling
 - `.env.example` — variables you need to configure
+
+## Upload and report workflow
+
+Upload a UTF-8 `.json` event card (maximum 512 KB) without needing Podium credentials. The file must contain a non-empty `event` object and an `entrants` array of 2–200 non-empty objects. An optional `sport` string describes the sport. For example:
+
+```json
+{
+  "sport": "Horse Racing",
+  "event": { "name": "Your race", "date": "2026-10-16" },
+  "entrants": [
+    { "name": "Runner A", "odds": "3/1", "form": "Your supplied evidence" },
+    { "name": "Runner B", "odds": "5/1", "form": "Your supplied evidence" }
+  ]
+}
+```
+
+This is a format example, not real racing data. Review the entrants and expand **Show Raw Data** to inspect all fields before requesting analysis. Files are read locally; event data is sent to the backend and Gemini only when you click Analyze. There is no file persistence in this implementation.
+
+Choose **Simple** for a short plain-language report or **Advanced** for fuller entrant comparisons, scenarios, and supported calculations. Both modes require evidence, counterarguments, explicit unknowns, and PASS when a wager is unsupported. These are model instructions, not a guarantee of output accuracy. Neither uploaded content nor arbitrary browser-submitted event data is independently verified by the server.
+
+`GEMINI_MODEL` selects the server-side model and defaults to `gemini-3.8-flash`, replacing the original hardcoded 1.5 model. Check availability for your Google project. Model lifecycle reference: https://ai.google.dev/gemini-api/docs/deprecations
+
+Run `npm test` for dependency-free upload-validation and analysis-policy tests. Live Podium and Gemini requests require credentials; these tests do not validate provider behavior or model recommendation quality.
+
+## Smart Handicapper requirement audit (2026-10-16)
+
+Inspected main commit `4b0846d3284a081a9813d154e40978c26f7454af`, its complete file tree, and open branches/PRs. Only main existed and no open PRs were returned. The repository is branded EXACTA; this change preserves that existing name rather than assuming a rebrand.
+
+| Requirement | Existing main | This change / remaining work |
+| --- | --- | --- |
+| Responsive dashboard | React/Vite UI with mobile CSS breakpoint | Preserved |
+| Online event information | Server-side Podium proxy, sports/venues/events/entrants flow | Preserved; provider coverage and credentials unverified |
+| Upload racing forms and data | No file input or parser | JSON event-card upload and shared server/browser validation added |
+| PDFs, screenshots, betting sheets, CSV/XLSX | No extraction implementation | Still missing; next step is document extraction into the same reviewed event/entrants structure |
+| Download online racing forms | No document download integration | Still missing; Podium event data is not a form download |
+| Explain and challenge selections | Prompt had a self-challenge section | Added explicit favorite-bias checks, counterevidence, unknowns, and abstention |
+| Simple and Advanced reports | One report format | Both added |
+| Twelve requested sport buttons | Dynamic API dropdown only | Still missing; do not claim Podium supports all requested sports |
+| Install on home screen | No manifest, icons, or service worker | Still missing |
+| Personal use | No authentication/access gate | Hosting access restriction still needed before exposing personal deployment |
+| Automated checks | No test script | Validation and prompt-policy regression tests added |
+
+Requested categories: Horse Racing, Greyhound Racing, Harness Racing, NASCAR, Formula 1, IndyCar, Football, Basketball, Baseball, Soccer, Boxing, and MMA/UFC.
+
+Key implementation files: `src/App.jsx` (upload, source review, mode selector, stale-response guards), `src/event-input.js` (shared input boundary), `server/analysis-prompt.js` (report policy), `server/index.js` (validated analysis endpoint), and `tests/event-input.test.js`.
+
